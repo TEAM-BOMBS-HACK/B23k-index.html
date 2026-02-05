@@ -2,107 +2,104 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Webhook Controller</title>
+<title>Ultimate Webhook Control</title>
 <style>
-body {
-    background:#0f1220;
-    font-family: Arial;
-    color:#fff;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    height:100vh;
+body{
+  margin:0;background:#0b0f1a;color:#fff;
+  font-family:system-ui;display:flex;justify-content:center;align-items:center;height:100vh
 }
-.box {
-    background:#1a1f3c;
-    padding:20px;
-    border-radius:12px;
-    width:360px;
-    box-shadow:0 0 20px #000;
+.app{width:420px;background:#12172b;border-radius:16px;padding:18px;box-shadow:0 0 30px #000}
+h2{text-align:center;margin:6px 0 12px}
+input,textarea,button{
+  width:100%;margin-top:8px;padding:10px;border-radius:10px;border:none;outline:none
 }
-h2 {
-    text-align:center;
-    margin-bottom:15px;
-}
-input, textarea, button {
-    width:100%;
-    margin-top:10px;
-    padding:10px;
-    border:none;
-    border-radius:8px;
-    outline:none;
-}
-textarea { resize:none; height:80px; }
-button {
-    background:#5865f2;
-    color:white;
-    cursor:pointer;
-}
-button.stop {
-    background:#ff4d4d;
-}
-small {
-    opacity:0.7;
-}
+textarea{resize:none;height:70px}
+button{background:#5865f2;color:#fff;cursor:pointer}
+button.stop{background:#ff4d4d}
+.row{display:flex;gap:8px}
+.row input{width:100%}
+.log{margin-top:10px;background:#0b0f1a;border-radius:10px;padding:8px;height:90px;overflow:auto;font-size:12px}
+.hide{display:none}
+small{opacity:.7}
 </style>
 </head>
 <body>
 
-<div class="box">
-    <h2>Webhook Control</h2>
+<div class="app">
+  <h2>Ultimate Webhook</h2>
 
+  <!-- LOCK -->
+  <input id="pass" type="password" placeholder="Password">
+  <button onclick="unlock()">Unlock</button>
+
+  <div id="panel" class="hide">
     <input id="webhook" placeholder="Webhook URL">
-    <textarea id="message" placeholder="Message content"></textarea>
 
-    <input id="count" type="number" placeholder="عدد التكرار">
-    <input id="delay" type="number" placeholder="التأخير (ms)">
+    <input id="username" placeholder="Bot Username (اختياري)">
+    <input id="avatar" placeholder="Avatar URL (اختياري)">
 
-    <button onclick="start()">Start Send</button>
+    <textarea id="msg" placeholder="Message"></textarea>
+
+    <div class="row">
+      <input id="count" type="number" placeholder="Count">
+      <input id="delay" type="number" placeholder="Delay ms">
+    </div>
+
+    <button onclick="start()">Start</button>
     <button class="stop" onclick="stop()">Stop</button>
 
     <small id="status"></small>
+    <div class="log" id="log"></div>
+  </div>
 </div>
 
 <script>
-let running = false;
+const PASSWORD="1234"; // غيرها
+let run=false;
+
+function unlock(){
+  if(pass.value===PASSWORD){
+    panel.classList.remove("hide");
+    pass.style.display="none";
+    event.target.style.display="none";
+  }else alert("غلط");
+}
+
+function log(t){
+  logBox.innerHTML+=t+"<br>";
+  logBox.scrollTop=logBox.scrollHeight;
+}
 
 async function start(){
-    const url = document.getElementById("webhook").value;
-    const msg = document.getElementById("message").value;
-    const count = parseInt(document.getElementById("count").value);
-    const delay = parseInt(document.getElementById("delay").value);
+  const url=webhook.value,msg=msgEl.value;
+  const c=+count.value,d=+delay.value;
+  if(!url||!msg||!c||!d) return alert("كمل الكل");
 
-    if(!url || !msg || !count || !delay){
-        alert("كمل كل الحقول");
-        return;
-    }
+  run=true;status.innerText="Running...";
+  for(let i=0;i<c;i++){
+    if(!run) break;
 
-    running = true;
-    document.getElementById("status").innerText = "Running...";
+    await fetch(url,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        content: msg,
+        username: username.value||undefined,
+        avatar_url: avatar.value||undefined
+      })
+    });
 
-    for(let i=0;i<count;i++){
-        if(!running) break;
-
-        await fetch(url,{
-            method:"POST",
-            headers:{"Content-Type":"application/json"},
-            body:JSON.stringify({content: msg})
-        });
-
-        document.getElementById("status").innerText =
-            `تم الإرسال ${i+1}/${count}`;
-
-        await new Promise(r=>setTimeout(r,delay));
-    }
-
-    running = false;
-    document.getElementById("status").innerText = "Done.";
+    log(`Sent ${i+1}/${c}`);
+    await new Promise(r=>setTimeout(r,d));
+  }
+  run=false;status.innerText="Done";
 }
 
-function stop(){
-    running = false;
-    document.getElementById("status").innerText = "Stopped.";
-}
+function stop(){run=false;status.innerText="Stopped";}
+
+const logBox=document.getElementById("log");
+const msgEl=document.getElementById("msg");
+const status=document.getElementById("status");
 </script>
 
 </body>
