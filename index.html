@@ -1,248 +1,107 @@
-
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>لوحة ويب هوك مع تشفير ذكي</title>
-
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
-
+<title>Webhook Controller</title>
 <style>
-:root {
-    --main: #00f2ff;
-    --card: rgba(255,255,255,0.07);
-}
-
-* { box-sizing: border-box; }
-
 body {
-    margin: 0;
-    min-height: 100vh;
-    background: radial-gradient(circle at top, #0a0a23, #02020a);
-    font-family: "Cairo", sans-serif;
-    color: white;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    background:#0f1220;
+    font-family: Arial;
+    color:#fff;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
 }
-
-.panel {
-    width: 560px;
-    background: var(--card);
-    border-radius: 22px;
-    padding: 25px;
-    backdrop-filter: blur(18px);
-    border: 1px solid rgba(255,255,255,0.1);
-    box-shadow: 0 0 40px rgba(0,242,255,0.25);
+.box {
+    background:#1a1f3c;
+    padding:20px;
+    border-radius:12px;
+    width:360px;
+    box-shadow:0 0 20px #000;
 }
-
-h1 {
-    text-align: center;
-    font-weight: 900;
-    color: var(--main);
-    margin-bottom: 25px;
+h2 {
+    text-align:center;
+    margin-bottom:15px;
 }
-
-label {
-    display: block;
-    margin-top: 15px;
-    margin-bottom: 6px;
-    font-size: 14px;
-    opacity: 0.85;
+input, textarea, button {
+    width:100%;
+    margin-top:10px;
+    padding:10px;
+    border:none;
+    border-radius:8px;
+    outline:none;
 }
-
-input, textarea {
-    width: 100%;
-    padding: 14px;
-    border-radius: 14px;
-    border: none;
-    outline: none;
-    background: rgba(0,0,0,0.5);
-    color: white;
-    font-size: 15px;
-}
-
-textarea {
-    height: 170px;
-    resize: none;
-}
-
+textarea { resize:none; height:80px; }
 button {
-    width: 100%;
-    margin-top: 12px;
-    padding: 14px;
-    border-radius: 14px;
-    border: none;
-    cursor: pointer;
-    font-weight: bold;
-    font-size: 15px;
-    background: linear-gradient(135deg, var(--main), #7effff);
-    color: #000;
-    transition: 0.25s;
+    background:#5865f2;
+    color:white;
+    cursor:pointer;
 }
-
-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 0 25px var(--main);
+button.stop {
+    background:#ff4d4d;
 }
-
-.row {
-    display: flex;
-    gap: 10px;
-}
-
-.toggle {
-    background: #222;
-    color: white;
-}
-
-.toggle.active {
-    background: linear-gradient(135deg, #00ff88, #7effff);
-    color: black;
-}
-
-.danger {
-    background: linear-gradient(135deg, #ff4d4d, #ff7675);
-    color: white;
-}
-
-.status {
-    margin-top: 15px;
-    text-align: center;
-    font-size: 14px;
-}
-
-.success { color: #00ffae; }
-.error { color: #ff5e5e; }
-
-.counter {
-    text-align: left;
-    font-size: 12px;
-    opacity: 0.7;
+small {
+    opacity:0.7;
 }
 </style>
 </head>
-
 <body>
 
-<div class="panel">
-    <h1>⚡ لوحة ويب هوك مشفرة</h1>
+<div class="box">
+    <h2>Webhook Control</h2>
 
-    <label>🔗 رابط الويب هوك</label>
-    <input id="webhook" placeholder="ضع رابط الويب هوك هنا">
+    <input id="webhook" placeholder="Webhook URL">
+    <textarea id="message" placeholder="Message content"></textarea>
 
-    <div class="row">
-        <button onclick="saveWebhook()">💾 حفظ الرابط</button>
-        <button class="danger" onclick="clearWebhook()">🗑️ حذف الرابط</button>
-    </div>
+    <input id="count" type="number" placeholder="عدد التكرار">
+    <input id="delay" type="number" placeholder="التأخير (ms)">
 
-    <label>✉️ النص</label>
-    <textarea id="msg" placeholder="حدّد الكلمة التي تريد تشفيرها ثم استخدم الأزرار"></textarea>
-    <div class="counter" id="count">0 حرف</div>
+    <button onclick="start()">Start Send</button>
+    <button class="stop" onclick="stop()">Stop</button>
 
-    <div class="row">
-        <button id="toggleBtn" class="toggle" onclick="toggleEncrypt()">🔓 التشفير متوقف</button>
-        <button onclick="encryptSelected()">🔐 تشفير المحدد</button>
-    </div>
-
-    <button onclick="send()"> 🪪 إرسال الرسالة</button>
-
-    <div class="status" id="status"></div>
+    <small id="status"></small>
 </div>
 
 <script>
-const webhookInput = document.getElementById("webhook");
-const msgBox = document.getElementById("msg");
-const statusBox = document.getElementById("status");
-const count = document.getElementById("count");
-const toggleBtn = document.getElementById("toggleBtn");
+let running = false;
 
-let encryptEnabled = false;
+async function start(){
+    const url = document.getElementById("webhook").value;
+    const msg = document.getElementById("message").value;
+    const count = parseInt(document.getElementById("count").value);
+    const delay = parseInt(document.getElementById("delay").value);
 
-// تحميل الرابط إذا موجود
-webhookInput.value = localStorage.getItem("webhook") || "";
-
-// عداد الأحرف
-msgBox.addEventListener("input", () => {
-    count.textContent = msgBox.value.length + " حرف";
-});
-
-// حفظ الويب هوك
-function saveWebhook() {
-    const url = webhookInput.value.trim();
-    if (!url.startsWith("https://")) {
-        return setStatus("❌ رابط غير صالح", false);
-    }
-    localStorage.setItem("webhook", url);
-    setStatus("✅ تم حفظ الويب هوك", true);
-}
-
-// حذف الويب هوك
-function clearWebhook() {
-    localStorage.removeItem("webhook");
-    webhookInput.value = "";
-    setStatus("🗑️ تم حذف الويب هوك، يمكنك وضع رابط جديد", true);
-}
-
-// تشغيل / إيقاف التشفير
-function toggleEncrypt() {
-    encryptEnabled = !encryptEnabled;
-    toggleBtn.textContent = encryptEnabled ? "🔐 التشفير مفعل" : "🔓 التشفير متوقف";
-    toggleBtn.classList.toggle("active", encryptEnabled);
-}
-
-// تشفير النص المحدد
-function encryptSelected() {
-    if (!encryptEnabled) {
-        return setStatus("⚠️ فعّل التشفير أولاً", false);
+    if(!url || !msg || !count || !delay){
+        alert("كمل كل الحقول");
+        return;
     }
 
-    const start = msgBox.selectionStart;
-    const end = msgBox.selectionEnd;
+    running = true;
+    document.getElementById("status").innerText = "Running...";
 
-    if (start === end) {
-        return setStatus("⚠️ لم يتم تحديد نص", false);
+    for(let i=0;i<count;i++){
+        if(!running) break;
+
+        await fetch(url,{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({content: msg})
+        });
+
+        document.getElementById("status").innerText =
+            `تم الإرسال ${i+1}/${count}`;
+
+        await new Promise(r=>setTimeout(r,delay));
     }
 
-    const before = msgBox.value.substring(0, start);
-    const selected = msgBox.value.substring(start, end);
-    const after = msgBox.value.substring(end);
-
-    let encrypted = "";
-    for (let c of selected) {
-        encrypted += c === " " ? " " : c + "̷";
-    }
-
-    msgBox.value = before + encrypted + after;
-    count.textContent = msgBox.value.length + " حرف";
-    setStatus("🔐 تم تشفير النص المحدد", true);
+    running = false;
+    document.getElementById("status").innerText = "Done.";
 }
 
-// إرسال الرسالة
-function send() {
-    const webhook = webhookInput.value.trim();
-    const content = msgBox.value.trim();
-
-    if (!webhook) return setStatus("⚠️ لا يوجد ويب هوك", false);
-    if (!content) return setStatus("⚠️ النص فارغ", false);
-
-    fetch(webhook, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content })
-    })
-    .then(r => {
-        if (!r.ok) throw 0;
-        setStatus("✅ تم إرسال الرسالة بنجاح", true);
-        msgBox.value = "";
-        count.textContent = "0 حرف";
-    })
-    .catch(() => setStatus("❌ فشل الإرسال", false));
-}
-
-function setStatus(text, ok) {
-    statusBox.textContent = text;
-    statusBox.className = "status " + (ok ? "success" : "error");
+function stop(){
+    running = false;
+    document.getElementById("status").innerText = "Stopped.";
 }
 </script>
 
